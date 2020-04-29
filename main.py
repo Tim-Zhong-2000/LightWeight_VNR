@@ -12,9 +12,10 @@ from subprocess import Popen, PIPE
 from PIL import Image
 from pyautogui import position, screenshot, size
 from pyperclip import copy
-from OCR.tesseract_ocr import languages, lang_translate, tesseract_OCR
+from OCR.tesseract_OCR import languages, lang_translate, tesseract_OCR
 from OCR.threshold_ways import threshold_ways, threshold_name
-from Translator.jbeijing import DLL, jbeijing_to, jbeijing_translate, jbeijing
+from Translator.jbeijing import jbeijing_to, jbeijing_translate, jbeijing
+from Translator.baidu import Baidu
 
 sg.theme('DarkGrey5')
 sg.set_options(font=('微软雅黑', 15))
@@ -49,12 +50,17 @@ class Main_Window(object):
         self.y2 = 0
         # 文本相关变量
         self.text = ''
+        # Jbeijing相关变量
         self.text_jbeijing_translate = ''
-        self.text_youdao_translate = ''
         # 有道相关变量
         self.youdao = None
+        self.text_youdao_translate = ''
         # 百度相关变量
-        self.baidu = None
+        self.baidu = Baidu(
+            appid=self.config['baidu_appid'],
+            key=self.config['baidu_key'],
+            enable=self.config['baidu'],
+        )
         self.text_baidu_translate = ''
         # TTS相关变量
         self.yukari2 = None
@@ -107,7 +113,6 @@ class Main_Window(object):
                     sg.Popup('提示', '有道词典路径不正确')
                 else:
                     from Translator.youdao import Youdao
-
                     self.youdao = Youdao(
                         path=self.config['youdao_path'],
                         interval=self.config['youdao_interval'],
@@ -118,24 +123,6 @@ class Main_Window(object):
                 if self.youdao:
                     self.youdao.stop()
                     self.youdao = None
-
-            elif event == '启动百度':
-                from Translator.baidu import Baidu
-                confirm = sg.PopupYesNo(
-                    "请确认：\n  APP ID: " + self.config['baidu_appid'] + "\n  密钥: "+ self.config['baidu_key'] + "\n\n如果与填入信息不一致请先进行保存" ,
-                    title='确认')
-                if confirm == 'Yes':
-                    self.baidu = Baidu(
-                        appid=self.config['baidu_appid'],
-                        key=self.config['baidu_key'],
-                    )
-                    self.baidu.enable()
-
-            elif event == '关闭百度':
-                if self.baidu:
-                    self.baidu.disable()
-                    self.baidu = None
-                print("close baidu")
 
             # 语音界面
             elif event == '启动Yukari2':
@@ -169,7 +156,6 @@ class Main_Window(object):
 
         if self.youdao:
             self.youdao.stop()
-
         if self.yukari2:
             self.yukari2.stop()
 
@@ -332,12 +318,17 @@ class Main_Window(object):
                     '百度翻译api',
                     [
                         [
-                            sg.Text('百度翻译'),
-                            sg.Button('启动百度'),
-                            sg.Button('关闭百度', pad=(20, 0)),
+                            sg.Text('百度翻译：'),
+                            # sg.Button('启动百度'),
+                            # sg.Button('关闭百度', pad=(20, 0)),
+                            sg.Checkbox(
+                                '启用',
+                                key='baidu',
+                                default=self.config['baidu'],
+                            )
                         ],
                         [
-                            sg.Text('APP ID：'),
+                            sg.Text('APP ID：   '),
                             sg.Input(
                                 key='baidu_appid',
                                 default_text=self.config['baidu_appid'],
@@ -345,11 +336,11 @@ class Main_Window(object):
                             ),
                         ],
                         [
-                            sg.Text('密钥：'),
+                            sg.Text('密钥：       '),
                             sg.Input(
                                 key='baidu_key',
                                 default_text=self.config['baidu_key'],
-                                size=(59, 1),
+                                size=(57, 1),
                             ),
                         ],
                     ],
@@ -366,8 +357,8 @@ class Main_Window(object):
                             sg.TabGroup(
                                 [
                                     [
-                                        sg.Tab('百度', translate_baidu),
                                         sg.Tab('有道', translate_youdao),
+                                        sg.Tab('百度', translate_baidu),
                                         sg.Tab('北京', translate_jbeijing),
                                     ]
                                 ],
@@ -733,15 +724,11 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
         help_translate = [
             [
                 sg.Frame(
-                    '百度',
+                    'JBeijing',
                     [
                         [
                             sg.Text(
-                                '\
-注意：百度翻译API是在线翻译，需要使用百度账号免费申请api\n\
-1.https://api.fanyi.baidu.com/ 进入百度翻译开放平台。\n\
-2.按照指引完成api开通，只需要申请“通用翻译API”。\n\
-3.完成申请后点击顶部"管理控制台"，在申请信息一栏可获取APP ID与密钥。',
+                                'JBeijing启用并保存后，即可获得翻译文本',
                                 pad=(10, 10),
                             ),
                         ],
@@ -755,10 +742,10 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
                         [
                             sg.Text(
                                 '\
-注意：有道调用的不是API，而是本地的有道词典程序\n\n\
-设置好有道词典路径后，点击启动有道，并切换到词典翻译页面，即可获取翻译文本（不可最小化）\n\n\
-有道词典的调用方式为复制文本到剪切板并复制到原文栏，并获取翻译栏的文本，所以速度会偏慢\n\n\
-若本程序获取的翻译文本错位，可尝试增加翻译间隔，或取消抓取翻译并将词典的翻译栏拖在游戏窗口下方\n\n\
+注意：有道调用的不是API，而是本地的有道词典程序\n\
+设置好有道词典路径后，点击启动有道，并切换到词典翻译页面，即可获取翻译文本（不可最小化）\n\
+有道词典的调用方式为复制文本到剪切板并复制到原文栏，并获取翻译栏的文本，所以速度会偏慢\n\
+若本程序获取的翻译文本错位，可尝试增加翻译间隔，或取消抓取翻译并将词典的翻译栏拖在游戏窗口下方\n\
 若有道词典的翻译有问题，可尝试终止有道后再启动有道',
                                 pad=(10, 10),
                             ),
@@ -768,11 +755,15 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
             ],
             [
                 sg.Frame(
-                    'JBeijing',
+                    '百度',
                     [
                         [
                             sg.Text(
-                                'JBeijing启用并保存后，即可获得翻译文本',
+                                '\
+注意：百度翻译API是在线翻译，需要使用百度账号免费申请api\n\
+1.https://api.fanyi.baidu.com/ 进入百度翻译开放平台。\n\
+2.按照指引完成api开通，只需要申请“通用翻译API”。\n\
+3.完成申请后点击顶部"管理控制台"，在申请信息一栏可获取APP ID与密钥。',
                                 pad=(10, 10),
                             ),
                         ],
@@ -871,16 +862,19 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
                 else:
                     self.config[i] = values[i]
 
-            if self.baidu:
-                self.baidu.set_appid(self.config['baidu_appid'])
-                self.baidu.set_key(self.config['baidu_key'])
-
             if self.youdao:
                 self.youdao.set_interval(self.config['youdao_interval'])
                 self.youdao.set_get_translate(self.config['youdao_get_translate'])
 
+            if self.baidu:
+                self.baidu.enabled = self.config['baidu']
+                self.baidu.set_appid(self.config['baidu_appid'])
+                self.baidu.set_key(self.config['baidu_key'])
+
             if self.yukari2:
                 self.yukari2.working = self.config['yukari2_constantly']
+                self.yukari2.set_aside(self.config['yukari2_aside'])
+                self.yukari2.set_character(self.config['yukari2_character'])
 
             with open('config.json', 'w') as f:
                 json.dump(self.config, f, indent=4)
@@ -908,8 +902,6 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
     # 文字处理
     def text_process(self, text):
-        text = text.strip()
-
         text = text[::int(self.config['deduplication'])]
 
         for i in re.split(r'\s+', self.config['garbage_chars']):
@@ -917,8 +909,10 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
         rule = re.compile(self.config['re'])
         info = rule.match(text)
-        if info and len(info.groups()):
-            text = ''.join(info.groups())
+        if info:
+            groups = info.groups()
+            if len(groups):
+                text = ''.join(groups)
 
         if self.config['copy']:
             copy(text)
@@ -944,13 +938,11 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
             self.text_baidu_translate = self.baidu.translate(text)
 
         if self.config['jbeijing']:
-            dll_path = os.path.join(self.config['jbeijing_path'], DLL)
-            if os.path.exists(dll_path):
-                self.text_jbeijing_translate = jbeijing(
-                    text,
-                    dll_path,
-                    jbeijing_to[self.config['jbeijing_to']],
-                )
+            self.text_jbeijing_translate = jbeijing(
+                text,
+                self.config['jbeijing_path'],
+                jbeijing_to[self.config['jbeijing_to']],
+            )
 
     # 刷新按钮函数
     def refresh_process_list(self):
@@ -980,15 +972,16 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
         TextractorCLI_path = os.path.join(self.config['textractor_path'], 'TextractorCLI.exe')
         texthook_path = os.path.join(self.config['textractor_path'], 'texthook.dll')
-        if os.path.exists(TextractorCLI_path) and os.path.exists(texthook_path):
+        if not os.path.exists(TextractorCLI_path) or \
+           not os.path.exists(texthook_path):
+            sg.Popup('提示', 'Textractor路径不正确')
+        else:
             self.refresh_process_list()
 
             self.textractor_working = True
             self.textractor_thread = Loop_Thread(target=self.textractor_work)
             self.textractor_thread.daemon = True
             self.textractor_thread.start()
-        else:
-            sg.Popup('提示', 'Textractor路径不正确')
 
     # 终止按钮函数
     def textractor_stop(self):
@@ -1015,7 +1008,7 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
             stderr=PIPE,
             encoding='utf-16-le',
         )
-        rule = re.compile(r'^(\[.+?\]) (.+)$')
+        rule = re.compile(r'^(\[.+?\])\s+(.+)$')
         hooks = []
         hooks_contents = []
         for line in iter(self.cli.stdout.readline, ''):
@@ -1043,8 +1036,7 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
                     curr_hook = self.main_window['hook'].get()
 
                 content = rule.match(curr_hook)
-                if content and \
-                   hook == content.group(1):
+                if content and hook == content.group(1):
                     self.text_process(text)
 
                     if not self.float:
@@ -1057,6 +1049,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
                         if self.youdao and self.youdao.get_translate:
                             self.main_window['content'].update('有道:\n' + self.text_youdao_translate + '\n\n', append=True)
+
+                        if self.baidu and self.baidu.enabled:
+                            self.main_window['content'].update('百度:\n' + self.text_baidu_translate+ '\n\n', append=True)
 
             sleep(self.config['textractor_interval'])
 
@@ -1251,6 +1246,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
                 if self.youdao and self.youdao.get_translate:
                     self.main_window['text_OCR'].update('有道:\n' + self.text_youdao_translate + '\n\n', append=True)
+
+                if self.baidu and self.baidu.enabled:
+                    self.main_window['text_OCR'].update('百度:\n' + self.text_baidu_translate + '\n\n', append=True)
 
         if self.config['OCR_continuously']:
             sleep(self.config['OCR_interval'])
