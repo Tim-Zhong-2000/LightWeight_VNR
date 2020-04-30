@@ -1,24 +1,10 @@
-import http.client
 import json
-
-def res2json(response):
-    return json.loads(response.read().decode("utf-8"))
-
-def errorhandel(code):
-    MAPPING = {
-        'API rate limit exceeded': "请求速度过快",
-        'Invalid token': "token输入错误",
-    }
-    try:
-        s = MAPPING[code]
-        return s
-    except Exception:
-        return "未知错误"
+import Translator.api as api
 
 class Caiyun(object):
     def __init__(self, **kw):
         self.token = kw['token']
-        self.enabled = False
+        self.enabled = kw['enabled']
 
     def set_token(self, token):
         self.token = token
@@ -32,7 +18,7 @@ class Caiyun(object):
     def translate(self, text):
         if self.enabled:
             token = self.token
-            httpClient = None
+            host = 'api.interpreter.caiyunai.com'
             myurl = '/v1/translator'
             direction = "auto2zh"
             headers = {
@@ -45,20 +31,31 @@ class Caiyun(object):
                 "request_id": "demo",
                 "detect": True,
             }
-            try:
-                httpClient = http.client.HTTPConnection(
-                    'api.interpreter.caiyunai.com')
-                httpClient.request('POST', myurl, json.dumps(payload), headers)
-                response = httpClient.getresponse()
-                if response.code == 200:
-                    res = res2json(response)
-                    return res['target']
-                if response.code == 403:
-                    res = res2json(response)
-                    return errorhandel(res['message'])
-                return "未知错误"
-            except Exception as e:
-                print(e)
-            finally:
-                if httpClient:
-                    httpClient.close()
+            response = api.post(host, myurl, json.dumps(payload), headers)
+            return processResponse(response)
+
+def errormap(code):
+    MAPPING = {
+        'API rate limit exceeded': "请求速度过快",
+        'Invalid token': "token输入错误",
+    }
+    try:
+        s = MAPPING[code]
+        return s
+    except Exception:
+        return code
+
+def processResponse(res):
+    
+    try:
+        res = json.loads(res) # 转换成json对象
+    except Exception:
+        return "未知数据错误"
+    try:
+        err = res['message'] # 获取错误信息
+        return errormap(err)
+    except Exception:
+        try:
+            return res['target'] # 返回翻译结果
+        except Exception:
+            return "未知错误2"

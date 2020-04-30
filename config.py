@@ -26,6 +26,8 @@ config = {
     'baidu': False,
     'baidu_appid': '',
     'baidu_key': '',
+    'caiyun': False,
+    'caiyun_token': '',
 
     # TTS相关
     'yukari2_path': os.path.abspath('.') + r'/Yukari2',

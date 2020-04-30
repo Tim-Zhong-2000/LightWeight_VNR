@@ -16,6 +16,7 @@ from OCR.tesseract_OCR import languages, lang_translate, tesseract_OCR
 from OCR.threshold_ways import threshold_ways, threshold_name
 from Translator.jbeijing import jbeijing_to, jbeijing_translate, jbeijing
 from Translator.baidu import Baidu
+from Translator.caiyun import Caiyun
 
 sg.theme('DarkGrey5')
 sg.set_options(font=('微软雅黑', 15))
@@ -59,9 +60,17 @@ class Main_Window(object):
         self.baidu = Baidu(
             appid=self.config['baidu_appid'],
             key=self.config['baidu_key'],
-            enable=self.config['baidu'],
+            enabled=self.config['baidu'],
         )
         self.text_baidu_translate = ''
+
+        # 彩云相关变量
+        self.caiyun = Caiyun(
+            token=self.config['caiyun_token'],
+            enabled=self.config['caiyun'],
+        )
+        self.text_caiyun_translate = ''
+
         # TTS相关变量
         self.yukari2 = None
 
@@ -349,6 +358,33 @@ class Main_Window(object):
             ],
         ]
 
+        translate_caiyun = [
+            [
+                sg.Frame(
+                    '彩云翻译api',
+                    [
+                        [
+                            sg.Text('彩云翻译：'),
+                            sg.Checkbox(
+                                '启用',
+                                key='caiyun',
+                                default=self.config['caiyun'],
+                            )
+                        ],
+                        [
+                            sg.Text('token：   '),
+                            sg.Input(
+                                key='caiyun_token',
+                                default_text=self.config['caiyun_token'],
+                                size=(57, 1),
+                            ),
+                        ],
+                    ],
+                    pad=(10, 10),
+                ),
+            ],
+        ]
+
         translate_layout = [
             [
                 sg.Column(
@@ -359,6 +395,7 @@ class Main_Window(object):
                                     [
                                         sg.Tab('有道', translate_youdao),
                                         sg.Tab('百度', translate_baidu),
+                                        sg.Tab('彩云', translate_caiyun),
                                         sg.Tab('北京', translate_jbeijing),
                                     ]
                                 ],
@@ -871,6 +908,10 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
                 self.baidu.set_appid(self.config['baidu_appid'])
                 self.baidu.set_key(self.config['baidu_key'])
 
+            if self.caiyun:
+                self.caiyun.enabled = self.config['caiyun']
+                self.caiyun.set_token(self.config['caiyun_token'])
+
             if self.yukari2:
                 self.yukari2.working = self.config['yukari2_constantly']
                 self.yukari2.set_aside(self.config['yukari2_aside'])
@@ -936,6 +977,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
         if self.baidu and self.baidu.enabled:
             self.text_baidu_translate = self.baidu.translate(text)
+        
+        if self.caiyun and self.caiyun.enabled:
+            self.text_caiyun_translate = self.caiyun.translate(text)
 
         if self.config['jbeijing']:
             self.text_jbeijing_translate = jbeijing(
@@ -1052,6 +1096,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
                         if self.baidu and self.baidu.enabled:
                             self.main_window['content'].update('百度:\n' + self.text_baidu_translate+ '\n\n', append=True)
+
+                        if self.caiyun and self.caiyun.enabled:
+                            self.main_window['content'].update('彩云:\n' + self.text_caiyun_translate+ '\n\n', append=True)
 
             sleep(self.config['textractor_interval'])
 
@@ -1249,6 +1296,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
                 if self.baidu and self.baidu.enabled:
                     self.main_window['text_OCR'].update('百度:\n' + self.text_baidu_translate + '\n\n', append=True)
+                
+                if self.caiyun and self.caiyun.enabled:
+                    self.main_window['text_OCR'].update('彩云:\n' + self.text_caiyun_translate + '\n\n', append=True)
 
         if self.config['OCR_continuously']:
             sleep(self.config['OCR_interval'])
@@ -1289,6 +1339,14 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
             ),
         ]
 
+        text_caiyun = [
+            sg.Text('彩云'),
+            sg.Frame(
+                '',
+                [[sg.Multiline('', key='text_caiyun_translated', size=(75, 2))]],
+            ),
+        ]
+
         layout = [
             text,
         ]
@@ -1301,6 +1359,9 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
 
         if self.baidu and self.baidu.enabled:
             layout.append(text_baidu)
+        
+        if self.caiyun and self.caiyun.enabled:
+            layout.append(text_caiyun)
 
         window = sg.Window(
             '',
@@ -1321,6 +1382,7 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
         prev_text_jbeijing = ''
         prev_text_youdao = ''
         prev_text_baidu = ''
+        prev_text_caiyun = ''
 
         while True:
             event, values = window.read(timeout=self.config['float_interval'] * 1000)
@@ -1344,6 +1406,11 @@ dll注入后，游戏进程不关，则再次打开程序只需启动TR即可，
                    prev_text_baidu != self.text_baidu_translate:
                     prev_text_baidu = self.text_baidu_translate
                     window['text_baidu_translated'].update(self.text_baidu_translate)
+                if self.caiyun and \
+                   self.caiyun.enabled and \
+                   prev_text_caiyun != self.text_caiyun_translate:
+                    prev_text_caiyun = self.text_caiyun_translate
+                    window['text_caiyun_translated'].update(self.text_caiyun_translate)
 
 
         self.float = False
