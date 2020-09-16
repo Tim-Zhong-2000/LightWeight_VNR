@@ -2,16 +2,14 @@ import sys
 sys.path.append("..")
 import os
 from pywinauto.application import Application
-from threading import Lock
-from set_game_focus import set_focus
+from set_focus import set_focus
 # from pyperclip import copy
 
-lock = Lock()
 
 # class Yukari(object):
 #     def __init__(self, **kw):
 #         self.path = kw['path']
-#         self.path_exe = os.path.join(kw['path'], r'VOICEROID.exe')
+#         self.path_exe = os.path.join(kw['path'], 'VOICEROID.exe')
 #         self.alpha = kw['alpha']
 #         self.working = kw['constantly']
 #         self.aside = kw['aside']
@@ -21,7 +19,7 @@ lock = Lock()
 #
 #     def set_path(self, path):
 #         self.path = path
-#         self.path_exe = os.path.join(path, r'VOICEROID.exe')
+#         self.path_exe = os.path.join(path, 'VOICEROID.exe')
 #
 #     def set_transparency(self, alpha):
 #         try:
@@ -79,7 +77,7 @@ lock = Lock()
 class Yukari2(object):
     def __init__(self, **kw):
         self.path = kw['path']
-        self.path_exe = os.path.join(kw['path'], r'VOICEROID.exe')
+        self.path_exe = os.path.join(kw['path'], 'VOICEROID.exe')
         self.working = kw['constantly']
         self.aside = kw['aside']
         self.character = kw['character']
@@ -91,7 +89,7 @@ class Yukari2(object):
 
     def set_path(self, path):
         self.path = path
-        self.path_exe = os.path.join(path, r'VOICEROID.exe')
+        self.path_exe = os.path.join(path, 'VOICEROID.exe')
 
     def set_aside(self, aside):
         self.aside = aside
@@ -122,26 +120,29 @@ class Yukari2(object):
             if not self.win:
                 self.win = self.app.top_window()
             if not self.edit:
-                self.edit = self.win.Edit
-            # if not self.play_button:
-            #     self.play_button = self.win.Button6
-            # if not self.stop_button:
-            #     self.stop_button = self.win.Button7
-            # self.stop_button.click()
-            # self.edit.set_text(text)
-            # self.play_button.click()
-            self.win.menu_select("文本->停止")
+                self.edit = self.win.custom.children()[0]
+            if not self.play_button:
+                self.play_button = self.win.custom.children()[1]
+            if not self.stop_button:
+                self.stop_button = self.win.custom.children()[2]
+                
+            self.stop_button.click()
             self.edit.set_text(text)
-            self.win.menu_select("文本->播放")
+            self.play_button.click()
         except:
             pass
 
     def read_text(self, text, pid=None):
-        if (self.aside and '「' not in text) or \
-           (self.character and '「' in text):
-            lock.acquire()
-            self.read(text)
-            lock.release()
-
-            if pid:
-                set_focus(pid)
+        if '「' in text or \
+           '『' in text or \
+           '（' in text or \
+           '(' in text:
+            if self.character:
+                self.read(text)
+                if pid:
+                    set_focus(pid)
+        else:
+            if self.aside:
+                self.read(text)
+                if pid:
+                    set_focus(pid)
